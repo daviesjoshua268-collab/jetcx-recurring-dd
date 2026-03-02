@@ -1,15 +1,10 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const nodemailer = require("nodemailer");
 
 const app = express();
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-
-/* ===== ENV VARIABLES ===== */
-const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS;
 
 /* ===== FRONTEND PAGE ===== */
 app.get("/", (req, res) => {
@@ -125,78 +120,15 @@ app.get("/", (req, res) => {
 });
 
 /* ===== FORM SUBMISSION ===== */
-app.post("/setup-recurring", async (req, res) => {
-  try {
+app.post("/setup-recurring", (req, res) => {
+  console.log("FORM RECEIVED");
 
-    const {
-      firstName,
-      lastName,
-      email,
-      companyName,
-      bsb,
-      accountNumber,
-      amount,
-      signature
-    } = req.body;
-
-    if (!firstName || !lastName || !email || !bsb || !accountNumber || !amount || !signature) {
-      return res.send(`
-        <div class="error">
-          <h2>ERROR</h2>
-          <p>Missing required fields.</p>
-        </div>
-      `);
-    }
-
-    const timestamp = new Date().toISOString();
-    const ipAddress =
-      req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-
-    const maskedAccount =
-      accountNumber.length > 3
-        ? "****" + accountNumber.slice(-3)
-        : accountNumber;
-
-    /* ===== SEND DDR EMAIL ===== */
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: EMAIL_USER, pass: EMAIL_PASS }
-    });
-
-    await transporter.sendMail({
-      from: "Jet CX DDR <" + EMAIL_USER + ">",
-      to: "hello@jetcx.com.au",
-      subject: "New Signed Direct Debit Request",
-      html:
-        "<h2>Direct Debit Request Signed</h2>" +
-        "<p><strong>Name:</strong> " + firstName + " " + lastName + "</p>" +
-        "<p><strong>Company:</strong> " + (companyName || "N/A") + "</p>" +
-        "<p><strong>Email:</strong> " + email + "</p>" +
-        "<p><strong>Amount:</strong> $" + amount + "</p>" +
-        "<p><strong>BSB:</strong> " + bsb + "</p>" +
-        "<p><strong>Account:</strong> " + maskedAccount + "</p>" +
-        "<p><strong>Signature:</strong> " + signature + "</p>" +
-        "<p><strong>IP:</strong> " + ipAddress + "</p>" +
-        "<p><strong>Timestamp:</strong> " + timestamp + "</p>"
-    });
-
-    /* ===== SUCCESS PAGE ===== */
-    res.send(`
-      <div class="success">
-        <h2>SUCCESS REACHED</h2>
-        <p>Your Direct Debit request has been received.</p>
-      </div>
-    `);
-
-  } catch (error) {
-    console.error("SERVER ERROR:", error);
-    res.send(`
-      <div class="error">
-        <h2>SERVER ERROR</h2>
-        <p>Please check Railway logs.</p>
-      </div>
-    `);
-  }
+  res.send(`
+    <div class="success">
+      <h2>SUCCESS REACHED</h2>
+      <p>The form submitted correctly.</p>
+    </div>
+  `);
 });
 
 const PORT = process.env.PORT || 3000;
