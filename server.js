@@ -2,8 +2,12 @@ const express = require("express");
 const axios = require("axios");
 const bodyParser = require("body-parser");
 const nodemailer = require("nodemailer");
+const cors = require("cors");
 
 const app = express();
+
+/* ===== ENABLE CORS ===== */
+app.use(cors());
 app.use(bodyParser.json());
 
 /* ===== ENV VARIABLES ===== */
@@ -42,6 +46,10 @@ app.post("/setup-recurring", async (req, res) => {
 
     if (!signature) {
       return res.status(400).json({ error: "DDR signature required" });
+    }
+
+    if (!firstName || !lastName || !email || !bsb || !accountNumber || !amount) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
     const amountInCents = Math.round(parseFloat(amount) * 100);
@@ -102,6 +110,10 @@ app.post("/setup-recurring", async (req, res) => {
 
     const accessToken = tokenResponse.data.access_token;
 
+    if (!accessToken) {
+      return res.status(500).json({ error: "Failed to obtain Zai token" });
+    }
+
     res.json({
       success: true,
       message: "Direct Debit setup successful"
@@ -109,7 +121,9 @@ app.post("/setup-recurring", async (req, res) => {
 
   } catch (error) {
     console.error("ERROR:", error.response?.data || error.message);
-    res.status(500).json({ error: "Setup failed" });
+    res.status(500).json({
+      error: error.response?.data?.error_description || "Setup failed"
+    });
   }
 });
 
