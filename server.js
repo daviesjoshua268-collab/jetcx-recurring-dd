@@ -10,7 +10,7 @@ app.use(bodyParser.json());
 const CLIENT_ID = "3m0citah728tgv2gapuvqefs98";
 const CLIENT_SECRET = "1dbicnscqpmqpjvb5cl97j4ne1e6v7hh9achnjq3gibursfqpmi1";
 const SCOPE = "im-au-11/e74c6020-ee82-013e-a094-0a58a9feac03:c4631aa7-b3f2-4975-be6f-2d5a812e9896:3";
-const SELLER_ID = "31b75a5355e7ffa81bbfbdbccb201d2a
+const SELLER_ID = "31b75a5355e7ffa81bbfbdbccb201d2a";
 ";
 
 const EMAIL_USER = "hello@jetcx.com.au";
