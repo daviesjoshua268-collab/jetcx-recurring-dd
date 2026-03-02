@@ -1,5 +1,4 @@
 const express = require("express");
-const axios = require("axios");
 const bodyParser = require("body-parser");
 const nodemailer = require("nodemailer");
 
@@ -9,18 +8,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 /* ===== ENV VARIABLES ===== */
-const CLIENT_ID = process.env.CLIENT_ID;
-const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const SCOPE = process.env.SCOPE;
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
-const ZAI_ENV = process.env.ZAI_ENV || "sandbox";
-
-/* ===== TOKEN URL SWITCH ===== */
-const TOKEN_URL =
-  ZAI_ENV === "production"
-    ? "https://au-0000.auth.assemblypay.com/tokens"
-    : "https://au-0000.sandbox.auth.assemblypay.com/tokens";
 
 /* ===== FRONTEND PAGE ===== */
 app.get("/", (req, res) => {
@@ -30,30 +19,61 @@ app.get("/", (req, res) => {
   <head>
     <title>Jet CX Direct Debit</title>
     <style>
-      body { font-family:-apple-system,sans-serif;background:#f4f6f9; }
+      body {
+        font-family:-apple-system,sans-serif;
+        background:#f4f6f9;
+      }
+
       .container {
-        max-width:700px;margin:40px auto;background:#fff;
-        padding:30px;border-radius:12px;
+        max-width:700px;
+        margin:40px auto;
+        background:#fff;
+        padding:30px;
+        border-radius:12px;
         box-shadow:0 10px 30px rgba(0,0,0,0.08);
       }
+
       input {
-        width:100%;padding:12px;margin:8px 0;
-        border-radius:8px;border:1px solid #ddd;
+        width:100%;
+        padding:12px;
+        margin:8px 0;
+        border-radius:8px;
+        border:1px solid #ddd;
       }
+
       button {
-        width:100%;padding:14px;
-        background:#2e6df6;color:white;
-        border:none;border-radius:8px;
-        font-size:15px;cursor:pointer;
+        width:100%;
+        padding:14px;
+        background:#2e6df6;
+        color:white;
+        border:none;
+        border-radius:8px;
+        font-size:15px;
+        cursor:pointer;
       }
+
       .ddr-box {
-        max-height:220px;
-        overflow-y:auto;
+        height:200px;
+        overflow-y:scroll;
         background:#f2f4f8;
         padding:15px;
         font-size:12px;
         border-radius:8px;
         margin-bottom:15px;
+        border:1px solid #ddd;
+      }
+
+      .success {
+        text-align:center;
+        margin-top:100px;
+        font-family:sans-serif;
+      }
+
+      .error {
+        text-align:center;
+        margin-top:100px;
+        font-family:sans-serif;
+        color:red;
       }
     </style>
   </head>
@@ -83,6 +103,9 @@ app.get("/", (req, res) => {
           <br><br>
           By proceeding you confirm you have read and agreed
           to the Direct Debit Request Service Agreement.
+          <br><br>
+          This authority remains in force until cancelled.
+          You may request cancellation at any time.
         </div>
 
         <label>
@@ -104,6 +127,7 @@ app.get("/", (req, res) => {
 /* ===== FORM SUBMISSION ===== */
 app.post("/setup-recurring", async (req, res) => {
   try {
+
     const {
       firstName,
       lastName,
@@ -114,6 +138,15 @@ app.post("/setup-recurring", async (req, res) => {
       amount,
       signature
     } = req.body;
+
+    if (!firstName || !lastName || !email || !bsb || !accountNumber || !amount || !signature) {
+      return res.send(`
+        <div class="error">
+          <h2>ERROR</h2>
+          <p>Missing required fields.</p>
+        </div>
+      `);
+    }
 
     const timestamp = new Date().toISOString();
     const ipAddress =
@@ -131,48 +164,38 @@ app.post("/setup-recurring", async (req, res) => {
     });
 
     await transporter.sendMail({
-      from: `"Jet CX DDR" <${EMAIL_USER}>`,
+      from: "Jet CX DDR <" + EMAIL_USER + ">",
       to: "hello@jetcx.com.au",
       subject: "New Signed Direct Debit Request",
-      html: `
-        <h2>Direct Debit Request Signed</h2>
-        <p><strong>Name:</strong> ${firstName} ${lastName}</p>
-        <p><strong>Company:</strong> ${companyName || "N/A"}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Amount:</strong> $${amount}</p>
-        <p><strong>BSB:</strong> ${bsb}</p>
-        <p><strong>Account:</strong> ${maskedAccount}</p>
-        <p><strong>Signature:</strong> ${signature}</p>
-        <p><strong>IP:</strong> ${ipAddress}</p>
-        <p><strong>Timestamp:</strong> ${timestamp}</p>
-      `
+      html:
+        "<h2>Direct Debit Request Signed</h2>" +
+        "<p><strong>Name:</strong> " + firstName + " " + lastName + "</p>" +
+        "<p><strong>Company:</strong> " + (companyName || "N/A") + "</p>" +
+        "<p><strong>Email:</strong> " + email + "</p>" +
+        "<p><strong>Amount:</strong> $" + amount + "</p>" +
+        "<p><strong>BSB:</strong> " + bsb + "</p>" +
+        "<p><strong>Account:</strong> " + maskedAccount + "</p>" +
+        "<p><strong>Signature:</strong> " + signature + "</p>" +
+        "<p><strong>IP:</strong> " + ipAddress + "</p>" +
+        "<p><strong>Timestamp:</strong> " + timestamp + "</p>"
     });
-
-    /* ===== GET ZAI TOKEN ===== */
-    await axios.post(
-      TOKEN_URL,
-      new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        scope: SCOPE
-      }).toString(),
-      {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" }
-      }
-    );
 
     /* ===== SUCCESS PAGE ===== */
     res.send(`
-      <div style="text-align:center;margin-top:100px;font-family:sans-serif;">
-        <h2>Direct Debit Setup Successful</h2>
-        <p>Your recurring debit request has been received.</p>
+      <div class="success">
+        <h2>SUCCESS REACHED</h2>
+        <p>Your Direct Debit request has been received.</p>
       </div>
     `);
 
   } catch (error) {
-    console.error(error);
-    res.status(500).send("Setup failed. Please try again.");
+    console.error("SERVER ERROR:", error);
+    res.send(`
+      <div class="error">
+        <h2>SERVER ERROR</h2>
+        <p>Please check Railway logs.</p>
+      </div>
+    `);
   }
 });
 
