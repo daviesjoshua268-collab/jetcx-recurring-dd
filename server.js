@@ -6,13 +6,20 @@ const nodemailer = require("nodemailer");
 const app = express();
 app.use(bodyParser.json());
 
-/* ===== SANDBOX CONFIG ===== */
+/* ===== ENV VARIABLES ===== */
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const SCOPE = process.env.SCOPE;
 const SELLER_ID = process.env.SELLER_ID;
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
+const ZAI_ENV = process.env.ZAI_ENV || "sandbox";
+
+/* ===== TOKEN URL SWITCH ===== */
+const TOKEN_URL =
+  ZAI_ENV === "production"
+    ? "https://au-0000.auth.assemblypay.com/tokens"
+    : "https://au-0000.sandbox.auth.assemblypay.com/tokens";
 
 /* ===== HEALTH CHECK ===== */
 app.get("/", (req, res) => {
@@ -26,6 +33,7 @@ app.post("/setup-recurring", async (req, res) => {
       firstName,
       lastName,
       email,
+      companyName,
       bsb,
       accountNumber,
       amount,
@@ -37,8 +45,17 @@ app.post("/setup-recurring", async (req, res) => {
     }
 
     const amountInCents = Math.round(parseFloat(amount) * 100);
+    const timestamp = new Date().toISOString();
+    const ipAddress =
+      req.headers["x-forwarded-for"] || req.socket.remoteAddress;
 
-    /* ===== SEND DDR EMAIL ===== */
+    /* ===== MASK ACCOUNT DETAILS ===== */
+    const maskedAccount =
+      accountNumber.length > 3
+        ? "****" + accountNumber.slice(-3)
+        : accountNumber;
+
+    /* ===== SEND DDR EMAIL COPY ===== */
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -50,19 +67,26 @@ app.post("/setup-recurring", async (req, res) => {
     await transporter.sendMail({
       from: `"Jet CX DDR" <${EMAIL_USER}>`,
       to: "hello@jetcx.com.au",
-      subject: "New Recurring DDR Signed",
+      subject: "New Signed Direct Debit Request",
       html: `
-        <h2>Recurring DDR</h2>
-        <p>Name: ${firstName} ${lastName}</p>
-        <p>Email: ${email}</p>
-        <p>Amount: $${amount}</p>
-        <p>Signature: ${signature}</p>
+        <h2>Direct Debit Request Signed</h2>
+        <p><strong>Name:</strong> ${firstName} ${lastName}</p>
+        <p><strong>Company:</strong> ${companyName || "N/A"}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Amount:</strong> $${amount}</p>
+        <p><strong>BSB:</strong> ${bsb}</p>
+        <p><strong>Account:</strong> ${maskedAccount}</p>
+        <p><strong>Signature:</strong> ${signature}</p>
+        <p><strong>IP Address:</strong> ${ipAddress}</p>
+        <p><strong>Timestamp:</strong> ${timestamp}</p>
+        <hr>
+        <p>This Direct Debit is authorised under the BECS framework via Zai Australia Pty Ltd (User IDs 342203 & 481561).</p>
       `
     });
 
     /* ===== GET ZAI TOKEN ===== */
     const tokenResponse = await axios.post(
-      "https://au-0000.sandbox.auth.assemblypay.com/tokens",
+      TOKEN_URL,
       new URLSearchParams({
         grant_type: "client_credentials",
         client_id: CLIENT_ID,
@@ -80,12 +104,11 @@ app.post("/setup-recurring", async (req, res) => {
 
     res.json({
       success: true,
-      message: "Token + DDR successful",
-      token_preview: accessToken.substring(0, 10) + "..."
+      message: "Direct Debit setup successful"
     });
 
   } catch (error) {
-    console.error(error.response?.data || error.message);
+    console.error("ERROR:", error.response?.data || error.message);
     res.status(500).json({ error: "Setup failed" });
   }
 });
