@@ -7,12 +7,12 @@ const app = express();
 app.use(bodyParser.json());
 
 /* ===== SANDBOX CONFIG ===== */
-const CLIENT_ID = "3m0citah728tgv2gapuvqefs98";
-const CLIENT_SECRET = "1dbicnscqpmqpjvb5cl97j4ne1e6v7hh9achnjq3gibursfqpmi1";
-const SCOPE = "im-au-11/e74c6020-ee82-013e-a094-0a58a9feac03:c4631aa7-b3f2-4975-be6f-2d5a812e9896:3";
-const SELLER_ID = "31b75a5355e7ffa81bbfbdbccb201d2a";
-const EMAIL_USER = "hello@jetcx.com.au";
-const EMAIL_PASS = "szdd wfjn yghv qmxj";
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const SCOPE = process.env.SCOPE;
+const SELLER_ID = process.env.SELLER_ID;
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
 
 /* ===== HEALTH CHECK ===== */
 app.get("/", (req, res) => {
